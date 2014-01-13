@@ -195,14 +195,14 @@ namespace BookSleeve
         /// </summary>
         /// <remarks>http://redis.io/commands/zinterstore</remarks>
         /// <returns>the number of elements in the resulting set.</returns>
-        Task<long> IntersectAndStore(int db, string destionation, string[] keys, RedisAggregate aggregate = RedisAggregate.Sum, bool queueJump = false);
+        Task<long> IntersectAndStore(int db, string destionation, string[] keys, RedisAggregate aggregate = RedisAggregate.Sum, double[] weights = null, bool queueJump = false);
 
-        /// <summary>
-        /// Computes the union of numkeys sorted sets given by the specified keys, and stores the result in destination. It is mandatory to provide the number of input keys (numkeys) before passing the input keys and the other (optional) arguments.
-        /// </summary>
-        /// <remarks>http://redis.io/commands/zunionstore</remarks>
-        /// <returns>the number of elements in the resulting set.</returns>
-        Task<long> UnionAndStore(int db, string destination, string[] keys, RedisAggregate aggregate = RedisAggregate.Sum, bool queueJump = false);
+		/// <summary>
+		/// Computes the union of numkeys sorted sets given by the specified keys, and stores the result in destination. It is mandatory to provide the number of input keys (numkeys) before passing the input keys and the other (optional) arguments.
+		/// </summary>
+		/// <remarks>http://redis.io/commands/zunionstore</remarks>
+		/// <returns>the number of elements in the resulting set.</returns>
+		Task<long> UnionAndStore(int db, string destination, string[] keys, RedisAggregate aggregate = RedisAggregate.Sum, double[] weights = null, bool queueJump = false);
 
         /// <summary>
         /// The ZSCAN command is used in order to incrementally iterate over a collection of elements.
@@ -472,26 +472,39 @@ namespace BookSleeve
             return ExecuteInt64(RedisMessage.Create(db, RedisLiteral.ZREMRANGEBYSCORE, key, RedisMessage.RedisParameter.Range(min, minInclusive), RedisMessage.RedisParameter.Range(max, maxInclusive)), queueJump);
         }
 
-        Task<long> ISortedSetCommands.IntersectAndStore(int db, string destination, string[] keys, RedisAggregate aggregate, bool queueJump)
+        Task<long> ISortedSetCommands.IntersectAndStore(int db, string destination, string[] keys, RedisAggregate aggregate, double[] weights, bool queueJump)
         {
-            string[] parameters = new string[keys.Length + 3]; //prepend the number of keys and append the aggregate keyword and the aggregation type
+			var weightParameterCount = weights != null ? weights.Length + 1 : 0;
+			string[] parameters = new string[keys.Length + 3 + weightParameterCount]; //prepend the number of keys and append the aggregate keyword and the aggregation type
             parameters[0] = keys.Length.ToString();
             keys.CopyTo(parameters, 1);
             parameters[keys.Length + 1] = "AGGREGATE";
             parameters[keys.Length + 2] = aggregate.ToString();
+			if (weights != null)
+				AddWeightParameters(keys, weights, parameters);
 
             return ExecuteInt64(RedisMessage.Create(db, RedisLiteral.ZINTERSTORE, destination, parameters), queueJump);          
         }
 
-        Task<long> ISortedSetCommands.UnionAndStore(int db, string destination, string[] keys, RedisAggregate aggregate, bool queueJump)
+        Task<long> ISortedSetCommands.UnionAndStore(int db, string destination, string[] keys, RedisAggregate aggregate, double[] weights, bool queueJump)
         {
-            string[] parameters = new string[keys.Length + 3]; //prepend the number of keys and append the aggregate keyword and the aggregation type
+	        var weightParameterCount = weights != null ? weights.Length + 1 : 0;
+			string[] parameters = new string[keys.Length + 3 + weightParameterCount]; //prepend the number of keys and append the aggregate keyword and the aggregation type
             parameters[0] = keys.Length.ToString();
             keys.CopyTo(parameters, 1);
             parameters[keys.Length + 1] = "AGGREGATE";
             parameters[keys.Length + 2] = aggregate.ToString();
+			if (weights != null)
+				AddWeightParameters(keys, weights, parameters);
 
             return ExecuteInt64(RedisMessage.Create(db, RedisLiteral.ZUNIONSTORE, destination, parameters), queueJump);
         }
+
+	    static void AddWeightParameters(string[] keys, double[] weights, string[] parameters)
+	    {
+			parameters[keys.Length + 3] = "WEIGHTS";
+			for (var i = 0; i < weights.Length; i++)
+				parameters[keys.Length + 4 + i] = weights[i].ToString();
+	    }
     }
 }

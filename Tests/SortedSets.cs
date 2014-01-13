@@ -322,6 +322,107 @@ namespace Tests
             }
         }
 
+		[Test]
+		public void UnionAndStoreWeights()
+		{
+			using (var conn = Config.GetUnsecuredConnection())
+			{
+				conn.Keys.Remove(3, "key1");
+				conn.Keys.Remove(3, "key2");
+				conn.Keys.Remove(3, "to");
+
+				conn.SortedSets.Add(3, "key1", "a", 1);
+				conn.SortedSets.Add(3, "key1", "b", 2);
+				conn.SortedSets.Add(3, "key1", "c", 3);
+
+				conn.SortedSets.Add(3, "key2", "a", 1);
+				conn.SortedSets.Add(3, "key2", "b", 2);
+				conn.SortedSets.Add(3, "key2", "c", 3);
+
+				var numberOfElementsT = conn.SortedSets.UnionAndStore(3, "to", new string[] { "key1", "key2" }, BookSleeve.RedisAggregate.Sum, new []{2, 3.5});
+				var resultSetT = conn.SortedSets.RangeString(3, "to", 0, -1);
+
+				var numberOfElements = conn.Wait(numberOfElementsT);
+				Assert.AreEqual(3, numberOfElements);
+
+				var s = conn.Wait(resultSetT);
+
+				Assert.AreEqual("a", s[0].Key);
+				Assert.AreEqual("b", s[1].Key);
+				Assert.AreEqual("c", s[2].Key);
+
+				Assert.AreEqual(5.5, s[0].Value);
+				Assert.AreEqual(11, s[1].Value);
+				Assert.AreEqual(16.5, s[2].Value);
+			}
+		}
+
+		[Test]
+		public void IntersectAndStore()
+		{
+			using (var conn = Config.GetUnsecuredConnection())
+			{
+				conn.Keys.Remove(3, "key1");
+				conn.Keys.Remove(3, "key2");
+				conn.Keys.Remove(3, "to");
+
+				conn.SortedSets.Add(3, "key1", "a", 1);
+				conn.SortedSets.Add(3, "key1", "b", 2);
+				conn.SortedSets.Add(3, "key1", "c", 3);
+
+				conn.SortedSets.Add(3, "key2", "c", 4);
+				conn.SortedSets.Add(3, "key2", "a", 5);
+				conn.SortedSets.Add(3, "key2", "d", 6);
+
+				var numberOfElementsT = conn.SortedSets.IntersectAndStore(3, "to", new string[] { "key1", "key2" }, BookSleeve.RedisAggregate.Sum);
+				var resultSetT = conn.SortedSets.RangeString(3, "to", 0, -1);
+
+				var numberOfElements = conn.Wait(numberOfElementsT);
+				Assert.AreEqual(2, numberOfElements);
+
+				var s = conn.Wait(resultSetT);
+
+				Assert.AreEqual("a", s[0].Key);
+				Assert.AreEqual("c", s[1].Key);
+
+				Assert.AreEqual(6, s[0].Value);
+				Assert.AreEqual(7, s[1].Value);
+			}
+		}
+
+		[Test]
+		public void IntersectAndStoreWeights()
+		{
+			using (var conn = Config.GetUnsecuredConnection())
+			{
+				conn.Keys.Remove(3, "key1");
+				conn.Keys.Remove(3, "key2");
+				conn.Keys.Remove(3, "to");
+
+				conn.SortedSets.Add(3, "key1", "a", 1);
+				conn.SortedSets.Add(3, "key1", "b", 2);
+				conn.SortedSets.Add(3, "key1", "c", 3);
+
+				conn.SortedSets.Add(3, "key2", "c", 4);
+				conn.SortedSets.Add(3, "key2", "a", 5);
+				conn.SortedSets.Add(3, "key2", "d", 6);
+
+				var numberOfElementsT = conn.SortedSets.IntersectAndStore(3, "to", new string[] { "key1", "key2" }, BookSleeve.RedisAggregate.Sum, new []{2, 3.5});
+				var resultSetT = conn.SortedSets.RangeString(3, "to", 0, -1);
+
+				var numberOfElements = conn.Wait(numberOfElementsT);
+				Assert.AreEqual(2, numberOfElements);
+
+				var s = conn.Wait(resultSetT);
+
+				Assert.AreEqual("a", s[0].Key);
+				Assert.AreEqual("c", s[1].Key);
+
+				Assert.AreEqual(19.5, s[0].Value);
+				Assert.AreEqual(20, s[1].Value);
+			}
+		}
+		
         [Test]
         public void TestZUNIONSTORElimit()
         {
